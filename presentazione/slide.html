@@ -1,0 +1,1236 @@
+<title>Chatbot Clinico di Rischio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+:root {
+  --ground: #F5F7F6;
+  --surface: #FFFFFF;
+  --sunk: #EBF0EE;
+  --ink: #13211E;
+  --ink-2: #43544F;
+  --muted: #778884;
+  --line: #D9E2DF;
+  --line-strong: #BCCBC6;
+  --accent: #008E78;
+  --accent-soft: #DCEDE8;
+  --series-2: #BE6E12;
+  --series-2-soft: #F6E9D6;
+  --risk: #B4433A;
+  --shadow: 0 1px 2px rgba(19,33,30,.06), 0 8px 24px rgba(19,33,30,.05);
+
+  --f-display: "Newsreader", Georgia, "Times New Roman", serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0E1614;
+    --surface: #16211F;
+    --sunk: #1D2A27;
+    --ink: #E7EEEC;
+    --ink-2: #AEBEBA;
+    --muted: #7F918D;
+    --line: #283733;
+    --line-strong: #3A4C47;
+    --accent: #2AAB94;
+    --accent-soft: #15302B;
+    --series-2: #C2862A;
+    --series-2-soft: #2E2516;
+    --risk: #E0796C;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground: #0E1614;
+  --surface: #16211F;
+  --sunk: #1D2A27;
+  --ink: #E7EEEC;
+  --ink-2: #AEBEBA;
+  --muted: #7F918D;
+  --line: #283733;
+  --line-strong: #3A4C47;
+  --accent: #2AAB94;
+  --accent-soft: #15302B;
+  --series-2: #C2862A;
+  --series-2-soft: #2E2516;
+  --risk: #E0796C;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--f-body);
+  line-height: 1.5;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- deck shell ---------- */
+.deck { position: relative; }
+
+.slide {
+  display: none;
+  min-height: 100vh;
+  padding: clamp(2rem, 4vw, 3.6rem) clamp(1.4rem, 5vw, 5rem) 6.5rem;
+  flex-direction: column;
+  gap: clamp(1rem, 2vh, 1.9rem);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.slide.is-active { display: flex; }
+
+.eyebrow {
+  font-family: var(--f-mono);
+  font-size: .72rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+}
+.eyebrow::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+h1 {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: clamp(2.4rem, 5.4vw, 4.4rem);
+  line-height: 1.04;
+  letter-spacing: -.02em;
+  margin: 0;
+  text-wrap: balance;
+}
+h2 {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: clamp(1.75rem, 3.5vw, 2.9rem);
+  line-height: 1.1;
+  letter-spacing: -.015em;
+  margin: 0;
+  text-wrap: balance;
+}
+h3 {
+  font-family: var(--f-body);
+  font-weight: 600;
+  font-size: clamp(.95rem, 1.35vw, 1.1rem);
+  margin: 0 0 .5rem;
+  letter-spacing: -.005em;
+}
+p, li { font-size: clamp(.95rem, 1.25vw, 1.16rem); color: var(--ink-2); margin: 0; }
+strong { color: var(--ink); font-weight: 600; }
+.lead { font-size: clamp(1.05rem, 1.6vw, 1.4rem); color: var(--ink-2); max-width: 62ch; }
+
+ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: .5rem; }
+li::marker { color: var(--accent); }
+
+.cols { display: grid; gap: clamp(1rem, 2.2vw, 2rem); align-items: start; }
+.c2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.c3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.c-7-5 { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+.c-5-7 { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); }
+@media (max-width: 860px) {
+  .c2, .c3, .c-7-5, .c-5-7 { grid-template-columns: minmax(0, 1fr); }
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: clamp(.95rem, 1.6vw, 1.4rem);
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+}
+.panel--sunk { background: var(--sunk); border-color: transparent; }
+.panel--accent { border-left: 3px solid var(--accent); }
+
+.tag {
+  font-family: var(--f-mono);
+  font-size: .68rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+code, .mono { font-family: var(--f-mono); font-size: .92em; }
+code { background: var(--sunk); padding: .12em .38em; border-radius: 4px; color: var(--ink); }
+
+pre {
+  font-family: var(--f-mono);
+  font-size: clamp(.76rem, 1.02vw, .93rem);
+  background: var(--sunk);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: .9rem 1rem;
+  margin: 0;
+  overflow-x: auto;
+  line-height: 1.65;
+  color: var(--ink);
+}
+pre .cm { color: var(--muted); }
+pre .fl { color: var(--accent); }
+
+/* ---------- tables ---------- */
+.tw { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: clamp(.82rem, 1.1vw, 1rem); }
+th, td { text-align: left; padding: .55rem .7rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+th {
+  font-family: var(--f-mono);
+  font-size: .7rem;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+td { color: var(--ink-2); }
+td strong { color: var(--ink); }
+tbody tr:last-child td { border-bottom: none; }
+.num { font-variant-numeric: tabular-nums; font-family: var(--f-mono); }
+
+/* ---------- chat mock ---------- */
+.chat { display: flex; flex-direction: column; gap: .5rem; }
+.bub {
+  max-width: 85%;
+  padding: .55rem .8rem;
+  border-radius: 12px;
+  font-size: clamp(.82rem, 1.05vw, .98rem);
+  line-height: 1.45;
+}
+.bub--bot { background: var(--sunk); border: 1px solid var(--line); border-bottom-left-radius: 3px; align-self: flex-start; color: var(--ink); }
+.bub--me { background: var(--accent); color: #fff; border-bottom-right-radius: 3px; align-self: flex-end; font-family: var(--f-mono); font-size: .88em; }
+:root[data-theme="dark"] .bub--me { color: #06201B; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bub--me { color: #06201B; } }
+.bub--err { background: transparent; border: 1px dashed var(--risk); color: var(--risk); align-self: flex-start; border-bottom-left-radius: 3px; }
+
+/* ---------- pipeline / flow ---------- */
+.flow { display: flex; flex-direction: column; gap: .4rem; }
+.step {
+  display: grid;
+  grid-template-columns: 1.7rem 1fr;
+  gap: .75rem;
+  align-items: baseline;
+  padding: .5rem .7rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.step__n {
+  font-family: var(--f-mono);
+  font-size: .78rem;
+  color: var(--accent);
+  font-weight: 500;
+}
+.step__t { font-size: clamp(.85rem, 1.1vw, 1rem); color: var(--ink-2); }
+.step__t b { color: var(--ink); font-weight: 600; }
+
+.blocks { display: flex; flex-direction: column; gap: .45rem; }
+.block {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: .6rem .85rem;
+}
+.block--learn { border-color: var(--series-2); background: var(--series-2-soft); }
+.block--act { border-color: var(--accent); background: var(--accent-soft); }
+.block h3 { margin-bottom: .15rem; }
+.block p { font-size: clamp(.8rem, 1vw, .95rem); }
+.arrow { text-align: center; color: var(--muted); font-family: var(--f-mono); font-size: .9rem; line-height: 1; }
+
+/* ---------- metric bars ---------- */
+.metrics { display: flex; flex-direction: column; gap: .8rem; }
+.metric__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: .85rem;
+  margin-bottom: .3rem;
+}
+.metric__name { font-family: var(--f-mono); font-size: .74rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.track { display: flex; flex-direction: column; gap: .3rem; }
+.bar-row { display: grid; grid-template-columns: 1fr 3.6rem; gap: .6rem; align-items: center; }
+.bar { height: 13px; border-radius: 0 4px 4px 0; background: var(--accent); }
+.bar--b { background: var(--series-2); }
+.bar-val { font-family: var(--f-mono); font-size: .82rem; color: var(--ink); font-variant-numeric: tabular-nums; text-align: right; }
+.legend { display: flex; gap: 1.1rem; flex-wrap: wrap; font-size: .82rem; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: .4rem; }
+.swatch { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+
+/* ---------- stat tiles ---------- */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: .7rem; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 9px; padding: .7rem .85rem; }
+.stat__v { font-family: var(--f-display); font-size: clamp(1.4rem, 2.5vw, 2rem); font-weight: 600; color: var(--ink); line-height: 1.1; font-variant-numeric: tabular-nums; }
+.stat__l { font-family: var(--f-mono); font-size: .68rem; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin-top: .2rem; }
+
+/* ---------- cover ---------- */
+.cover { justify-content: center; gap: clamp(1.2rem, 3vh, 2.4rem); }
+.cover__meta { display: flex; flex-wrap: wrap; gap: .5rem 1.6rem; font-size: .95rem; color: var(--ink-2); }
+.cover__meta b { color: var(--ink); font-weight: 600; }
+.ecg { width: 100%; max-width: 560px; height: 54px; display: block; }
+.chips { display: flex; gap: .55rem; flex-wrap: wrap; }
+.chip {
+  font-family: var(--f-mono);
+  font-size: .76rem;
+  padding: .32rem .7rem;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  color: var(--ink-2);
+}
+.chip--on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+/* ---------- agenda ---------- */
+.agenda { display: flex; flex-direction: column; gap: .1rem; }
+.ag {
+  display: grid;
+  grid-template-columns: 2.6rem 1fr auto;
+  gap: 1rem;
+  align-items: baseline;
+  padding: .7rem .2rem;
+  border-bottom: 1px solid var(--line);
+}
+.ag:last-child { border-bottom: none; }
+.ag__n { font-family: var(--f-mono); font-size: .8rem; color: var(--accent); }
+.ag__t { font-family: var(--f-display); font-size: clamp(1.05rem, 1.8vw, 1.45rem); color: var(--ink); font-weight: 600; }
+.ag__d { font-size: .85rem; color: var(--muted); font-family: var(--f-mono); white-space: nowrap; }
+
+/* ---------- chrome ---------- */
+.progress { position: fixed; top: 0; left: 0; height: 3px; background: var(--accent); z-index: 40; transition: width .25s ease; }
+.bar-bg { position: fixed; top: 0; left: 0; width: 100%; height: 3px; background: var(--line); z-index: 39; }
+
+.chrome {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .6rem clamp(1rem, 4vw, 2.4rem);
+  background: color-mix(in srgb, var(--ground) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid var(--line);
+  z-index: 38;
+}
+.chrome__sec { font-family: var(--f-mono); font-size: .74rem; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ctrls { display: flex; align-items: center; gap: .4rem; flex-shrink: 0; }
+button {
+  font-family: var(--f-mono);
+  font-size: .78rem;
+  color: var(--ink-2);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: .36rem .62rem;
+  cursor: pointer;
+  line-height: 1;
+}
+button:hover { border-color: var(--accent); color: var(--accent); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.counter { font-family: var(--f-mono); font-size: .78rem; color: var(--ink-2); font-variant-numeric: tabular-nums; min-width: 3.4rem; text-align: center; }
+
+/* ---------- speaker notes ---------- */
+.notes {
+  position: fixed;
+  left: 0; right: 0; bottom: 46px;
+  max-height: 42vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border-top: 2px solid var(--accent);
+  padding: 1rem clamp(1rem, 4vw, 2.4rem) 1.2rem;
+  z-index: 37;
+  box-shadow: 0 -8px 30px rgba(19,33,30,.08);
+}
+.notes[hidden] { display: none; }
+.notes h3 { font-family: var(--f-mono); font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin-bottom: .5rem; }
+.notes p { font-size: .95rem; max-width: 90ch; }
+.notes p + p { margin-top: .5rem; }
+
+.hint { font-size: .78rem; color: var(--muted); font-family: var(--f-mono); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ---------- print ---------- */
+.print-notes { display: none; }
+@page { size: A4 landscape; margin: 0; }
+
+@media print {
+  /* Force the light token set whichever theme the screen was in: these selectors match or
+     exceed the specificity of the dark-mode rules above and come last, so they win. */
+  :root,
+  :root:not([data-theme="light"]),
+  :root[data-theme="dark"] {
+    --ground: #FFFFFF;
+    --surface: #FFFFFF;
+    --sunk: #F1F5F3;
+    --ink: #13211E;
+    --ink-2: #3C4D49;
+    --muted: #6B7C78;
+    --line: #CFDBD7;
+    --line-strong: #B4C4BF;
+    --accent: #00705E;
+    --accent-soft: #E4F1ED;
+    --series-2: #9A5A0E;
+    --series-2-soft: #F7EDDE;
+    --risk: #A63B32;
+    --shadow: none;
+  }
+
+  html, body { background: #FFFFFF; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+  .chrome, .notes, .progress, .bar-bg, .hint { display: none !important; }
+
+  .slide {
+    display: flex !important;
+    min-height: auto;
+    height: 19.2cm;
+    page-break-after: always;
+    break-after: page;
+    overflow: hidden;
+    padding: 1cm 1.2cm;
+    max-width: none;
+    gap: .55rem;
+  }
+  .slide:last-child { page-break-after: avoid; break-after: auto; }
+
+  /* The print viewport can be narrower than the mobile breakpoint above, which would stack
+     every two-column layout and overflow the page. Paper is always wide: restore the columns. */
+  .c2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .c3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .c-7-5 { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+  .c-5-7 { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); }
+  .cols { gap: .7rem; }
+
+  /* Screen type scale is viewport-relative; pin it to physical sizes for paper. */
+  h1 { font-size: 30pt; }
+  h2 { font-size: 20pt; }
+  h3 { font-size: 10pt; }
+  p, li, .step__t, .block p { font-size: 9.2pt; }
+  .lead { font-size: 11pt; }
+  table { font-size: 8.4pt; }
+  pre { font-size: 7.6pt; padding: .5rem .6rem; }
+  .bub { font-size: 8pt; padding: .4rem .6rem; }
+  .stat__v { font-size: 15pt; }
+  .eyebrow { font-size: 7.5pt; }
+  .panel { padding: .55rem .7rem; gap: .4rem; border-radius: 7px; }
+  .step { padding: .34rem .55rem; }
+  .ag { padding: .45rem .2rem; }
+  .ag__t { font-size: 12pt; }
+  .ecg { height: 38px; }
+
+  .print-notes {
+    display: block !important;
+    margin-top: auto;
+    padding-top: .35cm;
+    border-top: .5pt solid var(--line-strong);
+    font-size: 8pt;
+    line-height: 1.4;
+    color: var(--ink-2);
+  }
+  .print-notes b { color: var(--accent); }
+
+  /* Slides-only variant, used for the projection PDF. */
+  body.no-notes .print-notes { display: none !important; }
+}
+</style>
+
+<div class="bar-bg"></div>
+<div class="progress" id="progress"></div>
+
+<main class="deck" id="deck">
+
+  <!-- 1 — COVER -->
+  <section class="slide cover is-active" data-sec="Presentazione">
+    <svg class="ecg" viewBox="0 0 560 54" fill="none" aria-hidden="true">
+      <path d="M0 27h92l10-7 8 20 11-40 12 54 10-27h46l9-9 7 18 10-27 9 36 8-18h50l10-7 8 20 11-40 12 54 10-27h46l9-9 7 18 10-27 9 36 8-18h116"
+            stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div>
+      <p class="eyebrow">Sistemi ad Agenti &nbsp;·&nbsp; A.A. 2025/26</p>
+      <h1>Chatbot clinico per la stima del rischio</h1>
+    </div>
+    <p class="lead">Un agente conversazionale che raccoglie dati clinici attraverso un dialogo guidato e li trasforma in una stima di rischio, usando embedding semantici biomedici e un classificatore addestrato su dati reali.</p>
+    <div class="chips">
+      <span class="chip chip--on">❤️ Heart Disease</span>
+      <span class="chip chip--on">🏥 Diabetes Readmission</span>
+      <span class="chip">BioBERT · 768-d</span>
+      <span class="chip">Streamlit · Telegram</span>
+    </div>
+    <div class="cover__meta">
+      <span>Corso di <b>Sistemi ad Agenti</b></span>
+      <span>Docente: <b>Prof.ssa Berardina De Carolis</b></span>
+      <span><b>Università degli Studi di Bari "Aldo Moro"</b></span>
+    </div>
+    <p class="hint">→ / spazio per avanzare · N per le note del relatore · S per il tema</p>
+    <div class="print-notes"><b>Note:</b> Apertura: presento il progetto in una frase — un chatbot che fa domande cliniche e restituisce una stima di rischio. Sottolineo subito i due aspetti che l'esame richiede: è un <i>agente</i> (percepisce, mantiene uno stato, agisce) e la sua decisione finale non è una regola scritta a mano ma un modello appreso dai dati.</div>
+  </section>
+
+  <!-- 2 — AGENDA -->
+  <section class="slide" data-sec="Presentazione">
+    <p class="eyebrow">Percorso</p>
+    <h2>Di cosa parliamo</h2>
+    <div class="agenda">
+      <div class="ag"><span class="ag__n">01</span><span class="ag__t">Cos'è un chatbot, e perché è un agente</span><span class="ag__d">slide 3–5</span></div>
+      <div class="ag"><span class="ag__n">02</span><span class="ag__t">Dal dialogo alla predizione</span><span class="ag__d">slide 6–9</span></div>
+      <div class="ag"><span class="ag__n">03</span><span class="ag__t">Classificazione e apprendimento</span><span class="ag__d">slide 10–13</span></div>
+      <div class="ag"><span class="ag__n">04</span><span class="ag__t">I due dataset e come scegliere</span><span class="ag__d">slide 14–16</span></div>
+      <div class="ag"><span class="ag__n">05</span><span class="ag__t">Come si esegue il progetto</span><span class="ag__d">slide 17–18</span></div>
+      <div class="ag"><span class="ag__n">06</span><span class="ag__t">Librerie, limiti e sviluppi</span><span class="ag__d">slide 19–20</span></div>
+    </div>
+    <div class="print-notes"><b>Note:</b> Dichiaro il percorso: si parte dalla teoria (cos'è un chatbot, come si inquadra nella teoria degli agenti), si scende nel funzionamento concreto, poi i dati, infine l'esecuzione pratica. Chiudo con limiti e sviluppi, che è la parte che mostra consapevolezza critica.</div>
+  </section>
+
+  <!-- 3 — COS'È UN CHATBOT -->
+  <section class="slide" data-sec="01 · Chatbot e agenti">
+    <p class="eyebrow">01 · Chatbot e agenti</p>
+    <h2>Cos'è un chatbot</h2>
+    <p class="lead">Un sistema software che interagisce con l'utente in <strong>linguaggio naturale</strong>, attraverso turni di dialogo, per fornire informazioni o portare a termine un compito.</p>
+    <div class="cols c3">
+      <div class="panel">
+        <span class="tag">Asse 1 · Scopo</span>
+        <h3>Task-oriented vs open-domain</h3>
+        <p>Obiettivo preciso in un dominio chiuso (prenotare, diagnosticare) oppure conversazione libera senza compito.</p>
+      </div>
+      <div class="panel">
+        <span class="tag">Asse 2 · Risposta</span>
+        <h3>Regole · retrieval · generativo</h3>
+        <p>Risposte scritte a priori, recuperate da una base di conoscenza, o generate da un modello linguistico.</p>
+      </div>
+      <div class="panel">
+        <span class="tag">Asse 3 · Dialogo</span>
+        <h3>Slot-filling · frame · piani</h3>
+        <p>Riempimento sequenziale di campi, gestione a frame con più intenti, o pianificazione dinamica dei turni.</p>
+      </div>
+    </div>
+    <div class="panel panel--accent">
+      <h3>Dove si colloca il nostro sistema</h3>
+      <p><strong>Task-oriented</strong> (un solo compito: stimare un rischio clinico) · dialogo <strong>a regole con slot-filling deterministico</strong> · ma la conclusione non è una regola: è la previsione di un <strong>modello statistico appreso dai dati</strong>. È un ibrido — regole per condurre la conversazione, machine learning per decidere.</p>
+    </div>
+    <div class="print-notes"><b>Note:</b> Definisco il chatbot e lo classifico su tre assi, perché all'esame conta saper collocare il sistema, non solo descriverlo. Il punto chiave da far passare: il nostro dialogo è deterministico e prevedibile (nessun LLM che genera testo libero), mentre la parte "intelligente" è concentrata nella decisione finale, che è appresa. Questa separazione è una scelta progettuale: rende il comportamento verificabile e la previsione misurabile.</div>
+  </section>
+
+  <!-- 4 — PEAS -->
+  <section class="slide" data-sec="01 · Chatbot e agenti">
+    <p class="eyebrow">01 · Chatbot e agenti</p>
+    <h2>Il chatbot come agente: descrizione PEAS</h2>
+    <div class="cols c2">
+      <div class="panel">
+        <span class="tag">P · Performance</span>
+        <p>Qualità della stima (ROC-AUC, macro-F1), questionario portato a termine, robustezza agli input non validi, trasparenza dell'esito (probabilità + soglia + avvertenza).</p>
+      </div>
+      <div class="panel">
+        <span class="tag">E · Environment</span>
+        <p>Conversazione testuale con un utente umano via Streamlit o Telegram. <strong>Parzialmente osservabile</strong> (vede solo ciò che l'utente dichiara), <strong>episodico</strong> (una sessione = una valutazione), deterministico, statico, discreto.</p>
+      </div>
+      <div class="panel">
+        <span class="tag">A · Actuators</span>
+        <p>Messaggi di testo: la domanda successiva, un messaggio d'errore mirato, oppure l'esito finale con probabilità stimata e disclaimer.</p>
+      </div>
+      <div class="panel">
+        <span class="tag">S · Sensors</span>
+        <p>I messaggi di testo dell'utente, interpretati da <strong>parser specifici per tipo di slot</strong> (scelta, intero in intervallo, decimale, codice etichettato).</p>
+      </div>
+    </div>
+    <div class="panel panel--sunk">
+      <h3>Proprietà dell'agente</h3>
+      <p><strong>Autonomia</strong>: decide da sé quale domanda porre e quando concludere · <strong>Reattività</strong>: risponde a ogni turno dell'utente · <strong>Orientamento all'obiettivo</strong>: completare gli slot e produrre la stima · <strong>Persistenza dello stato</strong>: ricorda le risposte già date nella sessione.</p>
+    </div>
+    <div class="print-notes"><b>Note:</b> Questa è la slide che lega il progetto al programma del corso. Mi soffermo su "parzialmente osservabile": l'agente non misura nulla, conosce solo ciò che l'utente gli dichiara — il che è anche il suo limite principale, perché l'utente può sbagliare o non conoscere il valore. "Episodico" significa che ogni sessione è indipendente: non c'è memoria tra una valutazione e l'altra.</div>
+  </section>
+
+  <!-- 5 — ARCHITETTURA -->
+  <section class="slide" data-sec="01 · Chatbot e agenti">
+    <p class="eyebrow">01 · Chatbot e agenti</p>
+    <h2>Architettura dell'agente</h2>
+    <div class="cols c-7-5">
+      <div class="blocks">
+        <div class="block">
+          <h3>Sensore — messaggio dell'utente</h3>
+          <p><code>handle_message(session, text)</code> riceve il turno</p>
+        </div>
+        <div class="arrow">↓</div>
+        <div class="block">
+          <h3>Interpretazione — parser dello slot corrente</h3>
+          <p>Validazione del valore; se fallisce, l'errore non fa avanzare lo stato</p>
+        </div>
+        <div class="arrow">↓</div>
+        <div class="block">
+          <h3>Stato interno — <span class="mono">ConversationSession</span></h3>
+          <p>Risposte raccolte (<code>answers</code>) + indice della domanda (<code>step</code>)</p>
+        </div>
+        <div class="arrow">↓</div>
+        <div class="block block--learn">
+          <h3>Decisione appresa — solo a slot completi</h3>
+          <p><span class="mono">record_to_text → BioBERT → LogisticRegression → soglia τ</span></p>
+        </div>
+        <div class="arrow">↓</div>
+        <div class="block block--act">
+          <h3>Attuatore — risposta testuale</h3>
+          <p>Domanda successiva · messaggio d'errore · esito finale</p>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.9rem">
+        <div class="panel panel--accent">
+          <h3>Che tipo di agente è</h3>
+          <p>Un <strong>agente basato su modello, con stato interno</strong>: non è puramente reattivo, perché la risposta dipende da quanto già raccolto nella sessione, non solo dall'ultimo messaggio.</p>
+        </div>
+        <div class="panel">
+          <h3>Dove sta l'apprendimento</h3>
+          <p>La componente decisionale è <strong>appresa offline</strong>, prima che la conversazione inizi. Durante il dialogo l'agente <strong>non apprende</strong>: applica un modello già addestrato e congelato.</p>
+        </div>
+        <div class="panel panel--sunk">
+          <h3>Un solo cervello, due canali</h3>
+          <p>Streamlit e Telegram chiamano lo stesso <code>chatbot_core</code>: la logica dell'agente è unica, cambia soltanto il mezzo di comunicazione.</p>
+        </div>
+      </div>
+    </div>
+    <div class="print-notes"><b>Note:</b> Mostro il ciclo percepisci–aggiorna stato–agisci. Faccio notare che il modulo decisionale si attiva una sola volta per sessione, all'ultimo slot: fino a quel momento l'agente è puramente dialogico. E chiarisco bene la distinzione tra apprendimento offline (addestramento) e inferenza online (uso): l'agente non impara dalle risposte degli utenti.</div>
+  </section>
+
+  <!-- 6 — DIALOGO -->
+  <section class="slide" data-sec="02 · Dal dialogo alla predizione">
+    <p class="eyebrow">02 · Dal dialogo alla predizione</p>
+    <h2>Il dialogo: slot-filling guidato</h2>
+    <div class="cols c-5-7">
+      <div style="display:flex;flex-direction:column;gap:.9rem">
+        <p>Ogni dataset ha una <strong>lista ordinata di domande</strong>, una per feature. Ciascuna definisce quattro cose:</p>
+        <div class="panel">
+          <p><span class="mono">field</span> — il campo da riempire<br>
+          <span class="mono">prompt</span> — la domanda da porre<br>
+          <span class="mono">parser</span> — come interpretare e validare<br>
+          <span class="mono">error</span> — cosa dire se il valore non è valido</p>
+        </div>
+        <div class="panel panel--accent">
+          <h3>La regola di avanzamento</h3>
+          <p>Se il parser restituisce un valore valido → salva e passa alla domanda dopo. Se restituisce <code>None</code> → ripete l'errore <strong>senza avanzare</strong>. L'agente non accetta mai un valore che non sa interpretare.</p>
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="stat__v">13</div><div class="stat__l">domande · Heart</div></div>
+          <div class="stat"><div class="stat__v">19</div><div class="stat__l">domande · Diabetes</div></div>
+        </div>
+      </div>
+      <div class="panel">
+        <span class="tag">Conversazione reale</span>
+        <div class="chat">
+          <div class="bub bub--bot">Ciao! Sono un assistente che stima il rischio clinico in base ad alcuni dati di base. ⚠️ Non sono uno strumento diagnostico.<br><br>Sei uomo o donna? (rispondi 'uomo' o 'donna')</div>
+          <div class="bub bub--me">uomo</div>
+          <div class="bub bub--bot">Quanti anni hai?</div>
+          <div class="bub bub--me">centoventi</div>
+          <div class="bub bub--err">Inserisci un'età valida (un numero tra 1 e 120).</div>
+          <div class="bub bub--me">63</div>
+          <div class="bub bub--bot">Che tipo di dolore al petto avverti?<br>1) angina tipica · 2) angina atipica · 3) dolore non anginoso · 4) asintomatico</div>
+          <div class="bub bub--me">1</div>
+          <div class="bub bub--bot">Qual è la tua pressione arteriosa a riposo (mmHg)?</div>
+        </div>
+      </div>
+    </div>
+    <div class="print-notes"><b>Note:</b> Mostro il dialogo reale, compreso un turno sbagliato: è il comportamento che dimostra la robustezza dell'agente. Faccio notare che l'errore è specifico della domanda, non generico — ogni slot sa spiegare cosa si aspetta. Le parole "nuovo", "ricomincia" o "/start" reimpostano la sessione in qualsiasi momento.</div>
+  </section>
+
+  <!-- 7 — PIPELINE PREDIZIONE -->
+  <section class="slide" data-sec="02 · Dal dialogo alla predizione">
+    <p class="eyebrow">02 · Dal dialogo alla predizione</p>
+    <h2>Come si arriva alla previsione</h2>
+    <div class="cols c-7-5">
+      <div class="flow">
+        <div class="step"><span class="step__n">01</span><span class="step__t"><b>Risposte raccolte</b> — il dizionario <span class="mono">answers</span> contiene un valore per ogni feature</span></div>
+        <div class="step"><span class="step__n">02</span><span class="step__t"><b>Record → testo</b> — <span class="mono">record_to_text()</span> compone una frase clinica in linguaggio naturale</span></div>
+        <div class="step"><span class="step__n">03</span><span class="step__t"><b>Testo → vettore</b> — BioBERT produce un embedding di <span class="mono">768</span> dimensioni</span></div>
+        <div class="step"><span class="step__n">04</span><span class="step__t"><b>Vettore → probabilità</b> — <span class="mono">predict_proba()</span> restituisce P(classe positiva)</span></div>
+        <div class="step"><span class="step__n">05</span><span class="step__t"><b>Probabilità → etichetta</b> — confronto con la soglia <span class="mono">τ</span> appresa</span></div>
+        <div class="step"><span class="step__n">06</span><span class="step__t"><b>Risposta</b> — esito, probabilità, soglia e avvertenza esplicita</span></div>
+      </div>
+      <div class="panel">
+        <span class="tag">Output reale dell'agente</span>
+        <div class="chat">
+          <div class="bub bub--bot">In base ai dati forniti, il paziente risulta <b>a RISCHIO di malattia cardiaca</b>.<br><br>Probabilità stimata: <b>78.4%</b> (soglia di decisione: 39.0%).<br><br>⚠️ Questo è solo un supporto informativo basato su un modello statistico, non una diagnosi medica. Consulta sempre un professionista sanitario.<br><br>Scrivi 'nuovo' per fare un'altra valutazione.</div>
+        </div>
+        <p class="hint">L'agente dichiara sempre la soglia usata: l'esito è interpretabile, non un verdetto opaco.</p>
+      </div>
+    </div>
+    <div class="print-notes"><b>Note:</b> Questo è il cuore della domanda "come dalle risposte si arriva alla predizione". Spiego che i passi 2 e 3 sono esattamente gli stessi usati in addestramento: la stessa funzione, lo stesso modello di embedding. È ciò che garantisce che il vettore prodotto in chat sia confrontabile con quelli su cui il classificatore è stato addestrato.</div>
+  </section>
+
+  <!-- 8 — TABELLARE → TESTO -->
+  <section class="slide" data-sec="02 · Dal dialogo alla predizione">
+    <p class="eyebrow">02 · Dal dialogo alla predizione</p>
+    <h2>Perché trasformare i dati in una frase</h2>
+    <div class="cols c2">
+      <div style="display:flex;flex-direction:column;gap:.9rem">
+        <p class="lead">Il modello di embedding è stato addestrato su <strong>testo biomedico</strong>. Dandogli una frase invece di una riga di numeri, sfruttiamo la conoscenza linguistica che ha già.</p>
+        <div class="panel">
+          <h3>Cosa guadagniamo</h3>
+          <p>Le etichette diventano parole che il modello ha già visto in letteratura medica — "angina tipica", "difetto reversibile" — invece di codici numerici (1, 2, 3) che da soli non significano nulla.</p>
+        </div>
+        <div class="panel panel--accent">
+          <h3>Un solo punto di verità</h3>
+          <p><code>record_to_text()</code> è usata sia per addestrare sia per rispondere in chat. Addestramento e inferenza non possono divergere.</p>
+        </div>
+      </div>
+      <div class="panel panel--sunk">
+        <span class="tag">La frase realmente generata e data in pasto al modello</span>
+        <pre>Male patient, 63 years old,
+chest pain type: angina tipica,
+resting blood pressure: 145 mm Hg,
+serum cholesterol: 233 mg/dl,
+fasting blood sugar &gt; 120 mg/dl: yes,
+resting electrocardiographic results: normale,
+maximum heart rate achieved: 150,
+exercise-induced angina: no,
+ST depression induced by exercise: 2.3,
+slope of the peak exercise ST segment: discendente,
+number of major vessels colored by fluoroscopy: 0,
+thalassemia: difetto fisso</pre>
+      </div>
+    </div>
+    <div class="print-notes"><b>Note:</b> Questa scelta è la più originale del progetto e vale la pena difenderla: trattiamo un problema tabellare come un problema di testo. Se mi chiedono perché non usare direttamente i numeri con un classificatore classico, rispondo onestamente: è un'alternativa legittima e spesso competitiva; qui l'obiettivo era verificare quanto segnale clinico un encoder biomedico riesce a catturare da una descrizione testuale.</div>
+  </section>
+
+  <!-- 9 — EMBEDDING -->
+  <section class="slide" data-sec="02 · Dal dialogo alla predizione">
+    <p class="eyebrow">02 · Dal dialogo alla predizione</p>
+    <h2>Gli embedding semantici</h2>
+    <div class="cols c-5-7">
+      <div style="display:flex;flex-direction:column;gap:.9rem">
+        <p class="lead">Un <strong>embedding</strong> è un vettore numerico che rappresenta il significato di un testo: frasi con contenuto simile producono vettori vicini nello spazio.</p>
+        <div class="stats">
+          <div class="stat"><div class="stat__v">768</div><div class="stat__l">dimensioni</div></div>
+          <div class="stat"><div class="stat__v">1</div><div class="stat__l">vettore per paziente</div></div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.9rem">
+        <div class="panel">
+          <span class="tag">Modello usato</span>
+          <h3 class="mono" style="font-size:.95rem">pritamdeka/BioBERT-mnli-snli-<br>scinli-scitail-mednli-stsb</h3>
+          <p>Un <strong>sentence-transformer</strong> costruito su <strong>BioBERT</strong>: BERT pre-addestrato su letteratura biomedica (PubMed) e poi specializzato nel produrre vettori di frase confrontabili tra loro.</p>
+        </div>
+        <div class="panel panel--accent">
+          <h3>Perché questo e non un modello generalista</h3>
+          <p>In un confronto preliminare tra encoder generalisti e biomedici su entrambi i dataset, è risultato il migliore per <strong>ROC-AUC</strong>. Da qui la scelta di fissarlo come unico encoder del sistema (<code>EMBEDDING_MODEL</code> in <code>function.py</code>).</p>
+        </div>
+      </div>
+    </div>
+    <div class="print-notes"><b>Note:</b> Spiego l'embedding con l'intuizione geometrica: significati vicini, vettori vicini. Il dettaglio da sottolineare è che il modello è <i>congelato</i>: non lo riaddestriamo, lo usiamo come estrattore di caratteristiche. Tutto l'apprendimento specifico del compito avviene nello strato successivo, il classificatore.</div>
+  </section>
+
+  <!-- 10 — CLASSIFICAZIONE -->
+  <section class="slide" data-sec="03 · Classificazione e apprendimento">
+    <p class="eyebrow">03 · Classificazione e apprendimento</p>
+    <h2>La classificazione</h2>
+    <div class="cols c-7-5">
+      <div style="display:flex;flex-direction:column;gap:.9rem">
+        <div class="panel">
+          <h3>Regressione logistica</h3>
+          <p>Combina linearmente i 768 valori dell'embedding e passa il risultato in una <strong>funzione sigmoide</strong>, che lo comprime in una probabilità tra 0 e 1. In codice: <code>LogisticRegression(max_iter=2000)</code>.</p>
+        </div>
+        <div class="panel panel--accent">
+          <h3>Perché un modello lineare e non una rete profonda</h3>
+          <p>L'embedding ha già fatto il lavoro semantico pesante. Uno strato lineare su rappresentazioni congelate misura <strong>quanto segnale è già presente</strong> nel vettore, con molti meno parametri da stimare — decisivo su Heart Disease, dove i record sono poche centinaia.</p>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.9rem">
+        <div class="panel panel--sunk">
+          <h3>La soglia di decisione τ</h3>
+          <p>Non si usa 0.5. La soglia viene <strong>appresa</strong>: è quella che massimizza l'F1 sulla curva precision-recall, calcolata su ogni fold e poi mediata.</p>
+          <div class="stats" style="margin-top:.4rem">
+            <div class="stat"><div class="stat__v num">0.390</div><div class="stat__l">τ · Heart Disease</div></div>
+            <div class="stat"><div class="stat__v num">0.376</div><div class="stat__l">τ · Diabetes 130</div></div>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Cosa significa una soglia bassa</h3>
+          <p>Il sistema segnala "a rischio" anche quando la probabilità stimata è sotto il 50%: è <strong>deliberatamente prudente</strong>, perché in ambito clinico un falso negativo pesa più di un falso allarme.</p>
+        </div>
+      </div>
+    </div>
+    <div class="print-notes"><b>Note:</b> Se mi chiedono perché non una rete neurale: rispondo che con 814 record e 768 dimensioni avrei più parametri che esempi. La soglia è il punto più interessante da raccontare — mostra che la decisione finale non è "probabilità > 50%" ma una scelta calibrata sui dati, e che la calibrazione riflette un'asimmetria di costo tra i due tipi di errore.</div>
+  </section>
+
+  <!-- 11 — PIPELINE APPRENDIMENTO -->
+  <section class="slide" data-sec="03 · Classificazione e apprendimento">
+    <p class="eyebrow">03 · Classificazione e apprendimento</p>
+    <h2>Come il sistema impara, prima della conversazione</h2>
+    <div class="flow">
+      <div class="step"><span class="step__n">01</span><span class="step__t"><b>preprocessing.py</b> — carica i dati grezzi, imputa i valori mancanti, divide 80/20 e bilancia le classi con SMOTENC → restituisce <span class="mono">X, y</span></span></div>
+      <div class="step"><span class="step__n">02</span><span class="step__t"><b>embedding.py</b> — converte ogni record in frase e genera i vettori BioBERT → salva <span class="mono">.npy</span> in <span class="mono">datas/&lt;dataset&gt;/embeddings/</span></span></div>
+      <div class="step"><span class="step__n">03</span><span class="step__t"><b>classification.py</b> — validazione incrociata a 5 fold, calcolo delle metriche e della soglia → <span class="mono">model_performance.csv</span></span></div>
+      <div class="step"><span class="step__n">04</span><span class="step__t"><b>chatbot_core.py</b> — riaddestra il classificatore su <i>tutti</i> gli embedding e carica la soglia salvata → l'agente è pronto</span></div>
+    </div>
+    <div class="cols c2">
+      <div class="panel panel--accent">
+        <h3>Ogni avvio riparte da zero</h3>
+        <p><code>clean_output_dirs()</code> svuota le cartelle del dataset prima di ricostruire: nessun risultato di una esecuzione precedente può sopravvivere e mescolarsi con quella corrente.</p>
+      </div>
+      <div class="panel">
+        <h3>Separazione netta dei due momenti</h3>
+        <p>Le fasi 1–3 sono <strong>apprendimento</strong> e avvengono una volta sola, all'avvio. La fase 4 prepara l'<strong>inferenza</strong>, che poi si ripete a ogni conversazione senza ulteriore addestramento.</p>
+      </div>
+    </div>
+    <div class="print-notes"><b>Note:</b> Qui rispondo alla domanda "come avviene l'apprendimento". Il messaggio da far passare: l'addestramento è un processo batch che precede la conversazione, non qualcosa che accade mentre l'utente scrive. Se mi chiedono i tempi: su Heart Disease è questione di minuti, su Diabetes130 molto di più perché gli embedding da generare sono 28.428 invece di 814.</div>
+  </section>
+
+  <!-- 12 — PREPROCESSING -->
+  <section class="slide" data-sec="03 · Classificazione e apprendimento">
+    <p class="eyebrow">03 · Classificazione e apprendimento</p>
+    <h2>Preparazione dei dati e bilanciamento</h2>
+    <div class="cols c3">
+      <div class="panel">
+        <span class="tag">Passo 1</span>
+        <h3>Imputazione</h3>
+        <p>I valori mancanti vengono riempiti con la <strong>mediana</strong> (feature numeriche) o la <strong>moda</strong> (categoriali). Necessario perché SMOTENC e la generazione del testo non tollerano buchi.</p>
+      </div>
+      <div class="panel">
+        <span class="tag">Passo 2</span>
+        <h3>Split stratificato 80/20</h3>
+        <p>La divisione conserva la proporzione delle classi, così la parte di addestramento non risulta sbilanciata per caso.</p>
+      </div>
+      <div class="panel">
+        <span class="tag">Passo 3</span>
+        <h3>SMOTENC</h3>
+        <p>Genera record sintetici della classe minoritaria fino a pareggiare le due classi.</p>
+      </div>
+    </div>
+    <div class="cols c-7-5">
+      <div class="panel panel--accent">
+        <h3>Perché SMOTENC e non SMOTE</h3>
+        <p>SMOTE classico lavora in uno spazio numerico codificato: i record che genera non sono più traducibili in una frase sensata. <strong>SMOTENC</strong> gestisce insieme colonne numeriche e categoriali — interpola i numeri, assegna alle categorie il valore più frequente tra i vicini — quindi ogni record sintetico resta un <strong>record clinico valido</strong> e convertibile in testo esattamente come uno reale.</p>
+      </div>
+      <div class="panel panel--sunk">
+        <h3>Risultato del bilanciamento</h3>
+        <div class="tw">
+          <table>
+            <tbody>
+              <tr><td><strong>Heart Disease</strong></td><td class="num">407 / 407</td><td class="num">814</td></tr>
+              <tr><td><strong>Diabetes 130</strong></td><td class="num">14.214 / 14.214</td><td class="num">28.428</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="hint">negativi / positivi · totale record usati per l'addestramento</p>
+      </div>
+    </div>
+    <div class="print-notes"><b>Note:</b> Il punto da spiegare bene è perché SMOTENC: è l'unica scelta compatibile con l'idea di convertire i record in testo. Se usassi SMOTE normale otterrei vettori sintetici che non corrispondono a nessun paziente descrivibile a parole. Se mi chiedono i rischi del bilanciamento: sì, le classi non sono più nelle proporzioni reali, e questo va tenuto presente quando si leggono accuratezza e F1.</div>
+  </section>
+
+  <!-- 13 — VALIDAZIONE -->
+  <section class="slide" data-sec="03 · Classificazione e apprendimento">
+    <p class="eyebrow">03 · Classificazione e apprendimento</p>
+    <h2>Validazione e metriche</h2>
+    <div class="cols c-5-7">
+      <div style="display:flex;flex-direction:column;gap:.9rem">
+        <div class="panel">
+          <h3>Validazione incrociata stratificata</h3>
+          <p><code>StratifiedKFold(n_splits=5, shuffle=True, random_state=42)</code>: i dati vengono divisi in 5 parti che conservano la proporzione delle classi. A turno, 4 servono per addestrare e 1 per valutare.</p>
+        </div>
+        <div class="panel panel--accent">
+          <h3>Cosa succede in ogni fold</h3>
+          <p>Addestra → stima le probabilità sulla parte tenuta fuori → calcola la curva precision-recall → sceglie la soglia che massimizza F1 → misura le metriche. I valori riportati sono la <strong>media dei 5 fold</strong>.</p>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.9rem">
+        <div class="panel">
+          <h3>Le tre metriche</h3>
+          <p><strong>Accuracy</strong> — quota di previsioni corrette. Leggibile, ma sensibile allo sbilanciamento.<br>
+          <strong>Macro-F1</strong> — media armonica di precisione e recall calcolata su entrambe le classi con lo stesso peso.<br>
+          <strong>ROC-AUC</strong> — capacità di <i>ordinare</i> i pazienti per rischio, indipendente dalla soglia scelta.</p>
+        </div>
+        <div class="panel panel--sunk">
+          <h3>Perché la ROC-AUC è la metrica di riferimento</h3>
+          <p>È l'unica che non dipende da τ: misura la qualità del modello separatamente dalla politica di decisione. Per questo è stata usata per scegliere l'encoder.</p>
+        </div>
+      </div>
+    </div>
+    <div class="print-notes"><b>Note:</b> Spiego perché non basta una sola divisione train/test: con 814 record il risultato dipenderebbe troppo da quali record finiscono dove. La 5-fold usa tutti i dati sia per addestrare sia per valutare, in momenti diversi. Preparo la risposta alla possibile obiezione: la soglia è scelta sullo stesso fold su cui si misurano accuratezza e F1, quindi quei due numeri sono leggermente ottimistici; la ROC-AUC invece non ne risente.</div>
+  </section>
+
+  <!-- 14 — DATASET 1 -->
+  <section class="slide" data-sec="04 · I due dataset">
+    <p class="eyebrow">04 · I due dataset</p>
+    <h2>❤️ UCI Heart Disease</h2>
+    <div class="cols c-7-5">
+      <div style="display:flex;flex-direction:column;gap:.9rem">
+        <p class="lead"><strong>Compito: diagnosi.</strong> Stabilire se è presente una malattia coronarica, sulla base dei dati di una singola visita cardiologica.</p>
+        <div class="panel">
+          <h3>Origine — quattro centri clinici</h3>
+          <div class="tw">
+            <table>
+              <tbody>
+                <tr><td>Cleveland Clinic Foundation</td><td class="num">303</td></tr>
+                <tr><td>Hungarian Institute of Cardiology</td><td class="num">294</td></tr>
+                <tr><td>University Hospital, Zurigo/Basilea</td><td class="num">123</td></tr>
+                <tr><td>V.A. Medical Center, Long Beach</td><td class="num">200</td></tr>
+                <tr><td><strong>Totale concatenato</strong></td><td class="num"><strong>920</strong></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="panel panel--accent">
+          <h3>Pulizia specifica</h3>
+          <p>In alcuni centri colesterolo e pressione mancanti sono registrati come <code>0</code>: valori fisiologicamente impossibili, quindi trattati come dati mancanti e imputati.</p>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.9rem">
+        <div class="panel panel--sunk">
+          <h3>13 feature cliniche</h3>
+          <p>età · sesso · tipo di dolore toracico · pressione a riposo · colesterolo · glicemia a digiuno · ECG a riposo · frequenza cardiaca massima · angina da sforzo · depressione del tratto ST · pendenza ST · vasi colorati da fluoroscopia · talassemia</p>
+        </div>
+        <div class="panel">
+          <h3>Variabile target</h3>
+          <p><code>num &gt; 0</code> → presenza di malattia. Il valore originale indica anche la gravità (1–4), ma viene <strong>binarizzato</strong>: presente / assente.</p>
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="stat__v num">920</div><div class="stat__l">record grezzi</div></div>
+          <div class="stat"><div class="stat__v num">814</div><div class="stat__l">dopo bilanciamento</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="print-notes"><b>Note:</b> Da sottolineare: i quattro centri hanno qualità dei dati molto diversa — Cleveland è quasi completo, gli altri hanno moltissimi valori mancanti su alcune colonne (vasi colorati e talassemia in particolare). È un limite reale del dataset, non del codice, e lo dichiaro apertamente nella slide dei limiti.</div>
+  </section>
+
+  <!-- 15 — DATASET 2 -->
+  <section class="slide" data-sec="04 · I due dataset">
+    <p class="eyebrow">04 · I due dataset</p>
+    <h2>🏥 UCI Diabetes 130-US Hospitals</h2>
+    <div class="cols c-7-5">
+      <div style="display:flex;flex-direction:column;gap:.9rem">
+        <p class="lead"><strong>Compito: prognosi.</strong> Prevedere se un paziente diabetico verrà <strong>riammesso in ospedale entro 30 giorni</strong> dalla dimissione.</p>
+        <div class="panel">
+          <h3>Origine e scala</h3>
+          <p><strong>101.766</strong> ricoveri di pazienti diabetici in <strong>130 ospedali statunitensi</strong>, raccolti tra il <strong>1999 e il 2008</strong>. Il progetto ne usa un <strong>campione stratificato di 20.000</strong> record, per contenere i tempi di calcolo mantenendo la proporzione delle classi.</p>
+        </div>
+        <div class="panel panel--accent">
+          <h3>Selezione delle colonne: 19 su circa 50</h3>
+          <p>Escluse quelle quasi costanti (flag di dosaggio di farmaci rari) e quelle con troppi valori mancanti o prive di significato clinico (peso, codice assicurativo, identificativi del paziente).</p>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.9rem">
+        <div class="panel panel--sunk">
+          <h3>19 feature</h3>
+          <p>etnia · genere · fascia d'età · tipo di ammissione · modalità di dimissione · fonte di ammissione · giorni di degenza · numero di esami di laboratorio · procedure · farmaci somministrati · visite ambulatoriali, accessi al pronto soccorso e ricoveri nell'anno precedente · numero di diagnosi · glicemia massima · test A1C · terapia insulinica · cambio di terapia · farmaco antidiabetico prescritto</p>
+        </div>
+        <div class="panel">
+          <h3>Variabile target</h3>
+          <p><code>readmitted == "&lt;30"</code> → riammissione precoce. Le riammissioni oltre i 30 giorni e le non riammissioni contano entrambe come classe negativa.</p>
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="stat__v num">20k</div><div class="stat__l">campione usato</div></div>
+          <div class="stat"><div class="stat__v num">28.428</div><div class="stat__l">dopo bilanciamento</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="print-notes"><b>Note:</b> Il contrasto da evidenziare: qui il compito è prognostico, molto più difficile, e le feature sono in gran parte amministrative (conteggi, codici di ammissione) più che cliniche. Questo spiega in buona parte perché le metriche saranno più basse: le informazioni che servirebbero davvero — aderenza alla terapia, supporto familiare, condizioni sociali — non sono nel dataset.</div>
+  </section>
+
+  <!-- 16 — CONFRONTO -->
+  <section class="slide" data-sec="04 · I due dataset">
+    <p class="eyebrow">04 · I due dataset</p>
+    <h2>Confronto e criteri di scelta</h2>
+    <div class="cols c-7-5">
+      <div style="display:flex;flex-direction:column;gap:.9rem">
+        <div class="tw panel" style="padding:0;overflow:hidden">
+          <table>
+            <thead>
+              <tr><th>Criterio</th><th>Heart Disease</th><th>Diabetes 130</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Compito</td><td><strong>Diagnosi</strong></td><td><strong>Prognosi a 30 giorni</strong></td></tr>
+              <tr><td>Record grezzi</td><td class="num">920</td><td class="num">101.766</td></tr>
+              <tr><td>Usati per addestrare</td><td class="num">814</td><td class="num">28.428</td></tr>
+              <tr><td>Feature</td><td class="num">13</td><td class="num">19</td></tr>
+              <tr><td>Domande in chat</td><td class="num">13</td><td class="num">19</td></tr>
+              <tr><td>Natura dei dati</td><td>Cliniche / strumentali</td><td>Prevalentemente amministrative</td></tr>
+              <tr><td>Tempo di avvio</td><td>Minuti</td><td>Molto più lungo</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="panel panel--accent">
+          <h3>Come scegliere</h3>
+          <p><strong>Cosa vuoi mostrare</strong> — diagnosi o previsione di riammissione · <strong>Chi è l'utente</strong> — Heart Disease chiede esami specialistici (ECG da sforzo, fluoroscopia), Diabetes 130 chiede dati che conosce il personale ospedaliero · <strong>Quanto tempo hai</strong> — 814 contro 28.428 embedding da generare.</p>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.9rem">
+        <div class="panel">
+          <span class="tag">Risultati · media su 5 fold</span>
+          <div class="metrics">
+            <div>
+              <div class="metric__head"><span class="metric__name">ROC-AUC</span></div>
+              <div class="track">
+                <div class="bar-row"><div class="bar" style="width:87.7%"></div><span class="bar-val">0.877</span></div>
+                <div class="bar-row"><div class="bar bar--b" style="width:76.8%"></div><span class="bar-val">0.768</span></div>
+              </div>
+            </div>
+            <div>
+              <div class="metric__head"><span class="metric__name">Accuracy</span></div>
+              <div class="track">
+                <div class="bar-row"><div class="bar" style="width:82.1%"></div><span class="bar-val">0.821</span></div>
+                <div class="bar-row"><div class="bar bar--b" style="width:68.3%"></div><span class="bar-val">0.683</span></div>
+              </div>
+            </div>
+            <div>
+              <div class="metric__head"><span class="metric__name">Macro-F1</span></div>
+              <div class="track">
+                <div class="bar-row"><div class="bar" style="width:81.9%"></div><span class="bar-val">0.819</span></div>
+                <div class="bar-row"><div class="bar bar--b" style="width:67.1%"></div><span class="bar-val">0.671</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="legend" style="margin-top:.3rem">
+            <span><i class="swatch" style="background:var(--accent)"></i> Heart Disease</span>
+            <span><i class="swatch" style="background:var(--series-2)"></i> Diabetes 130</span>
+          </div>
+        </div>
+        <div class="panel panel--sunk">
+          <h3>Per la demo d'esame</h3>
+          <p><strong>Heart Disease</strong>: si avvia in pochi minuti, le domande sono riconoscibilmente cliniche e le metriche sono nettamente migliori.</p>
+        </div>
+      </div>
+    </div>
+    <div class="print-notes"><b>Note:</b> Se mi chiedono perché Diabetes 130 va peggio, la risposta è nella natura del compito: prevedere una riammissione futura dipende da fattori che il dataset non contiene. Non è un difetto dell'implementazione. Faccio notare che il divario è coerente su tutte e tre le metriche, quindi non è un artefatto di una misura particolare.</div>
+  </section>
+
+  <!-- 17 — ESECUZIONE -->
+  <section class="slide" data-sec="05 · Esecuzione">
+    <p class="eyebrow">05 · Esecuzione</p>
+    <h2>Come si esegue il progetto</h2>
+    <div class="cols c2">
+      <div style="display:flex;flex-direction:column;gap:.9rem">
+        <div class="panel">
+          <h3>Prerequisiti</h3>
+          <p>Python <strong>3.11+</strong> · connessione a internet al primo avvio (il modello BioBERT viene scaricato automaticamente) · un token <strong>Telegram</strong> solo se si usa quel front-end.</p>
+        </div>
+        <div class="panel">
+          <span class="tag">Opzione A · script automatico</span>
+          <pre><span class="cm"># crea l'ambiente, installa, chiede cosa lanciare</span>
+./run_chatbot.sh
+
+<span class="cm"># oppure direttamente con i parametri</span>
+./run_chatbot.sh <span class="fl">--dataset</span> heart_disease \
+                 <span class="fl">--chatbot</span> streamlit</pre>
+          <p class="hint">Su Windows: <code>run_chatbot.bat</code> o <code>run_chatbot.ps1</code></p>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.9rem">
+        <div class="panel">
+          <span class="tag">Opzione B · manuale</span>
+          <pre>python3 -m venv env
+source env/bin/activate
+pip install -r requirements.txt
+
+python main.py <span class="fl">--dataset</span> heart_disease \
+               <span class="fl">--chatbot</span> streamlit
+
+python main.py <span class="fl">--dataset</span> diabetes130 \
+               <span class="fl">--chatbot</span> telegram</pre>
+        </div>
+        <div class="panel panel--accent">
+          <h3>Cosa succede a ogni avvio</h3>
+          <p><code>main.py</code> <strong>ricostruisce il classificatore da zero</strong> — pulizia, preprocessing, embedding, addestramento — e solo quando è pronto apre il chatbot. Con <code>diabetes130</code> l'attesa è sensibilmente più lunga: gli embedding da calcolare sono 28.428.</p>
+        </div>
+        <div class="panel panel--sunk">
+          <h3>Token Telegram</h3>
+          <p>File <code>.env</code> nella cartella del progetto:<br><code>TELEGRAM_BOT_TOKEN=...</code> ottenuto da @BotFather.</p>
+        </div>
+      </div>
+    </div>
+    <div class="print-notes"><b>Note:</b> Durante la demo conviene avviare il progetto <i>prima</i> di iniziare a parlare, perché la fase di embedding richiede tempo. Se la connessione non è disponibile, il modello BioBERT deve essere già in cache locale dal primo avvio. Consiglio: usare Streamlit in aula, perché non richiede token né connessione a Telegram.</div>
+  </section>
+
+  <!-- 18 — FRONT-END -->
+  <section class="slide" data-sec="05 · Esecuzione">
+    <p class="eyebrow">05 · Esecuzione</p>
+    <h2>I due front-end</h2>
+    <div class="cols c2">
+      <div class="panel">
+        <span class="tag">app_streamlit.py</span>
+        <h3>Interfaccia web locale</h3>
+        <p>Usa <code>st.chat_message</code> e <code>st.chat_input</code> per la chat; lo stato della conversazione vive in <code>st.session_state</code>, che sopravvive ai ri-render della pagina.</p>
+        <p>Se il dataset non è preimpostato da riga di comando, lo si sceglie direttamente nell'interfaccia prima di iniziare.</p>
+      </div>
+      <div class="panel">
+        <span class="tag">bot_telegram.py</span>
+        <h3>Bot Telegram asincrono</h3>
+        <p>Costruito con <code>Application</code> e due handler: <code>/start</code> e i messaggi di testo. Funziona in <strong>polling</strong>.</p>
+        <p>Mantiene un dizionario <code>sessions</code> indicizzato per <code>chat_id</code>: <strong>più utenti possono conversare contemporaneamente</strong>, ognuno con il proprio stato.</p>
+      </div>
+    </div>
+    <div class="panel panel--accent">
+      <h3>Un'unica logica, due canali</h3>
+      <p>Entrambi i front-end si limitano a ricevere il testo e passarlo a <code>chatbot_core.handle_message()</code>, poi mostrano la risposta. Nessuna delle due interfacce contiene logica di dialogo o di predizione: cambiare canale non cambia il comportamento dell'agente. È la stessa separazione che, nella teoria degli agenti, distingue l'<strong>agente</strong> dai suoi <strong>sensori e attuatori</strong>.</p>
+    </div>
+    <div class="print-notes"><b>Note:</b> Questo è un buon punto da far valere all'esame: la separazione tra logica dell'agente e canale di interazione è esattamente il principio architetturale visto a lezione. La prova pratica è che il bot Telegram gestisce più conversazioni simultanee senza che il core sappia nulla di Telegram.</div>
+  </section>
+
+  <!-- 19 — LIBRERIE -->
+  <section class="slide" data-sec="06 · Librerie e limiti">
+    <p class="eyebrow">06 · Librerie e limiti</p>
+    <h2>Le librerie e il loro ruolo</h2>
+    <div class="tw panel" style="padding:0;overflow:hidden">
+      <table>
+        <thead>
+          <tr><th>Libreria</th><th>Versione</th><th>Ruolo nel progetto</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>sentence-transformers</strong></td><td class="num">5.5.1</td><td>Carica BioBERT e trasforma la frase clinica in un vettore di 768 numeri (<code>model.encode</code>). È il ponte tra testo e matematica.</td></tr>
+          <tr><td><strong>transformers</strong> + <strong>torch</strong></td><td class="num">5.7.0 / 2.11.0</td><td>Motore sottostante del modello neurale: tokenizzazione del testo ed esecuzione della rete.</td></tr>
+          <tr><td><strong>scikit-learn</strong></td><td class="num">1.8.0</td><td>Regressione logistica, validazione incrociata stratificata, metriche e curva precision-recall per la soglia τ.</td></tr>
+          <tr><td><strong>imbalanced-learn</strong></td><td class="num">0.14.2</td><td>SMOTENC: bilancia le classi generando record sintetici che restano clinicamente interpretabili.</td></tr>
+          <tr><td><strong>pandas</strong></td><td class="num">3.0.2</td><td>Lettura dei file <code>.data</code> e <code>.csv</code>, selezione delle colonne, imputazione dei mancanti.</td></tr>
+          <tr><td><strong>numpy</strong></td><td class="num">2.4.4</td><td>Gestione e salvataggio degli array di embedding in formato <code>.npy</code>.</td></tr>
+          <tr><td><strong>streamlit</strong></td><td class="num">1.59.1</td><td>Interfaccia chat web e persistenza dello stato della sessione.</td></tr>
+          <tr><td><strong>python-telegram-bot</strong></td><td class="num">22.8</td><td>Bot Telegram asincrono: gestione degli handler e del polling dei messaggi.</td></tr>
+          <tr><td><strong>python-dotenv</strong></td><td class="num">1.2.2</td><td>Carica il token Telegram da <code>.env</code>, tenendolo fuori dal codice sorgente.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="print-notes"><b>Note:</b> Non leggo la tabella riga per riga. Mi concentro sulle tre che fanno il lavoro concettuale: sentence-transformers (il testo diventa vettore), scikit-learn (il vettore diventa probabilità), imbalanced-learn (i dati diventano bilanciati senza perdere interpretabilità). Le altre sono infrastruttura.</div>
+  </section>
+
+  <!-- 20 — LIMITI -->
+  <section class="slide" data-sec="06 · Librerie e limiti">
+    <p class="eyebrow">06 · Librerie e limiti</p>
+    <h2>Limiti dichiarati e sviluppi futuri</h2>
+    <div class="cols c2">
+      <div style="display:flex;flex-direction:column;gap:.7rem">
+        <div class="panel" style="border-left:3px solid var(--risk)">
+          <h3>Non è uno strumento diagnostico</h3>
+          <p>Il codice lo dichiara due volte: nel messaggio di benvenuto e dopo ogni previsione. È un supporto informativo basato su un modello statistico.</p>
+        </div>
+        <div class="panel">
+          <h3>Asimmetria tra addestramento e uso</h3>
+          <p>Nel training molti valori erano imputati; in chat l'utente fornisce sempre un valore reale. Le due situazioni non sono identiche.</p>
+        </div>
+        <div class="panel">
+          <h3>Soglia e classificatore non perfettamente allineati</h3>
+          <p>τ è la media delle soglie dei 5 fold, ma il classificatore finale viene riaddestrato su tutti i dati: non è esattamente lo stesso modello su cui τ è stata calibrata.</p>
+        </div>
+        <div class="panel">
+          <h3>Dati storici e non italiani</h3>
+          <p>Heart Disease risale al 1988, Diabetes 130 copre il 1999–2008, entrambi su popolazioni statunitensi ed europee.</p>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.7rem">
+        <div class="panel panel--accent">
+          <h3>Sviluppi possibili</h3>
+          <p><strong>Permettere "non lo so"</strong> — oggi ogni domanda richiede una risposta, anche quando l'utente non può conoscerla (fluoroscopia, ECG da sforzo).</p>
+          <p><strong>Calibrare le probabilità</strong> — verificare che un "70%" corrisponda davvero a 7 casi su 10, non solo che l'ordinamento sia corretto.</p>
+          <p><strong>Spiegare la previsione</strong> — indicare quali risposte hanno pesato di più sull'esito.</p>
+          <p><strong>Validare lo scenario conversazionale</strong> — le metriche misurano il modello sui dati, non l'affidabilità del sistema usato da una persona reale.</p>
+        </div>
+        <div class="panel panel--sunk">
+          <h3>In sintesi</h3>
+          <p>Un agente conversazionale <strong>task-oriented</strong> che unisce un dialogo deterministico e verificabile a una decisione appresa dai dati, con le sue prestazioni <strong>misurate</strong> e i suoi limiti <strong>dichiarati</strong>.</p>
+        </div>
+      </div>
+    </div>
+    <div class="print-notes"><b>Note:</b> Chiudo con i limiti, non con i risultati: dimostra consapevolezza critica ed è ciò che normalmente viene chiesto in sede d'esame. Il limite più interessante da discutere è il primo degli sviluppi: il chatbot obbliga a rispondere a tutto, mentre il modello sarebbe perfettamente in grado di gestire un valore dichiarato come non disponibile. Grazie, sono a disposizione per le domande.</div>
+  </section>
+
+</main>
+
+<aside class="notes" id="notes" hidden aria-live="polite">
+  <h3>Note del relatore</h3>
+  <div id="notesBody"></div>
+</aside>
+
+<footer class="chrome">
+  <span class="chrome__sec" id="secLabel">Presentazione</span>
+  <div class="ctrls">
+    <button id="btnNotes" aria-pressed="false" title="Note del relatore (N)">Note</button>
+    <button id="btnTheme" title="Cambia tema (S)">Tema</button>
+    <button id="btnPrev" title="Precedente (←)">←</button>
+    <span class="counter" id="counter">1 / 20</span>
+    <button id="btnNext" title="Successiva (→)">→</button>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var idx = 0;
+  var notesOpen = false;
+
+  var elProgress = document.getElementById('progress');
+  var elCounter = document.getElementById('counter');
+  var elSec = document.getElementById('secLabel');
+  var elNotes = document.getElementById('notes');
+  var elNotesBody = document.getElementById('notesBody');
+  var btnNotes = document.getElementById('btnNotes');
+
+  function noteFor(i) {
+    var n = slides[i].querySelector('.print-notes');
+    return n ? n.innerHTML : '<p>—</p>';
+  }
+
+  function render() {
+    slides.forEach(function (s, i) { s.classList.toggle('is-active', i === idx); });
+    elProgress.style.width = ((idx + 1) / slides.length * 100) + '%';
+    elCounter.textContent = (idx + 1) + ' / ' + slides.length;
+    elSec.textContent = slides[idx].getAttribute('data-sec') || '';
+    elNotesBody.innerHTML = noteFor(idx);
+    window.scrollTo(0, 0);
+    try { history.replaceState(null, '', '#' + (idx + 1)); } catch (e) {}
+  }
+
+  function go(n) {
+    idx = Math.max(0, Math.min(slides.length - 1, n));
+    render();
+  }
+
+  function toggleNotes(force) {
+    notesOpen = (typeof force === 'boolean') ? force : !notesOpen;
+    elNotes.hidden = !notesOpen;
+    btnNotes.setAttribute('aria-pressed', String(notesOpen));
+  }
+
+  document.getElementById('btnNext').addEventListener('click', function () { go(idx + 1); });
+  document.getElementById('btnPrev').addEventListener('click', function () { go(idx - 1); });
+  btnNotes.addEventListener('click', function () { toggleNotes(); });
+  document.getElementById('btnTheme').addEventListener('click', function () {
+    var cur = document.documentElement.getAttribute('data-theme');
+    var isDark = cur ? cur === 'dark'
+      : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+    var k = e.key;
+    if (k === 'ArrowRight' || k === 'PageDown' || k === ' ') { e.preventDefault(); go(idx + 1); }
+    else if (k === 'ArrowLeft' || k === 'PageUp') { e.preventDefault(); go(idx - 1); }
+    else if (k === 'Home') { e.preventDefault(); go(0); }
+    else if (k === 'End') { e.preventDefault(); go(slides.length - 1); }
+    else if (k === 'n' || k === 'N') { toggleNotes(); }
+    else if (k === 's' || k === 'S') { document.getElementById('btnTheme').click(); }
+  });
+
+  var startX = null;
+  document.addEventListener('touchstart', function (e) { startX = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend', function (e) {
+    if (startX === null) return;
+    var dx = e.changedTouches[0].clientX - startX;
+    if (Math.abs(dx) > 60) { go(dx < 0 ? idx + 1 : idx - 1); }
+    startX = null;
+  }, { passive: true });
+
+  // ?notes=0 prints the deck without speaker notes (used for the projection PDF).
+  if (/[?&]notes=0\b/.test(location.search)) document.body.classList.add('no-notes');
+
+  var fromHash = parseInt((location.hash || '').replace('#', ''), 10);
+  if (!isNaN(fromHash) && fromHash >= 1 && fromHash <= slides.length) idx = fromHash - 1;
+  render();
+})();
+</script>
