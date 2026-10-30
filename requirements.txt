@@ -19,7 +19,6 @@ httptools==0.8.0
 httpx==0.28.1
 huggingface_hub==1.13.0
 idna==3.13
-imbalanced-learn==0.14.2
 itsdangerous==2.2.0
 Jinja2==3.1.6
 joblib==1.5.3
@@ -49,6 +48,7 @@ python-telegram-bot==22.8
 PyYAML==6.0.3
 referencing==0.37.0
 regex==2026.4.4
+reportlab==5.1.0
 requests==2.34.2
 rich==15.0.0
 rpds-py==2026.6.3

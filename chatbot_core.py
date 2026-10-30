@@ -1,18 +1,14 @@
 import os
 
+import joblib
 import numpy as np
 import pandas as pd
-from sentence_transformers import SentenceTransformer
-from sklearn.linear_model import LogisticRegression
 
 from embedding import (
-    CP_LABELS, RESTECG_LABELS, SLOPE_LABELS, THAL_LABELS,
+    CP_LABELS, RESTECG_LABELS, SLOPE_LABELS, THAL_LABELS, load_embedder,
     record_to_text_diabetes130, record_to_text_heart_disease,
 )
-from function import (
-    EMBEDDING_MODEL, cat_cols, cat_cols_diabetes130, get_output_dirs,
-    num_cols, num_cols_diabetes130,
-)
+from function import EMBEDDING_MODEL, get_output_dirs
 
 DATASETS = ["heart_disease", "diabetes130"]
 
@@ -28,6 +24,12 @@ WELCOME = (
 
 RESTART_WORDS = {"nuovo", "restart", "/start", "ricomincia"}
 UNKNOWN_ANSWERS = {"non lo so", "non so", "non ricordo", "sconosciuto", "ignoto", "n/a", "na", "?"}
+# Below this share of known answers the sentence says too little for an estimate to mean anything.
+MIN_KNOWN_RATIO = 0.5
+
+ADMISSION_TYPE_IDS = {1, 2, 3, 4, 5, 6, 7, 8}
+DISCHARGE_DISPOSITION_IDS = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 16, 17, 18, 22, 23, 24, 25, 27, 28}
+ADMISSION_SOURCE_IDS = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 17, 20, 22, 25}
 
 
 def _parse_choice(text, options):
@@ -37,9 +39,12 @@ def _parse_choice(text, options):
 
 def _parse_int_range(text, low, high):
     try:
-        value = int(float(text.strip().replace(",", ".")))
+        number = float(text.strip().replace(",", "."))
     except ValueError:
         return None
+    if not number.is_integer():
+        return None
+    value = int(number)
     return value if low <= value <= high else None
 
 
@@ -60,9 +65,8 @@ def _parse_labeled(text, labels):
     return code if code in labels else None
 
 
-def _parse_nonempty(text):
-    t = text.strip()
-    return t if t else None
+def _categories(values):
+    return {value.lower(): value for value in values}
 
 
 def _options_prompt(labels):
@@ -78,40 +82,16 @@ def _question_prompt(question):
 
 
 def _is_unknown_answer(text):
-    normalized = text.strip().lower().rstrip(".!?").strip()
-    return normalized in UNKNOWN_ANSWERS
-
-
-def _impute_unknown_answers(dataset, answers):
-    if not any(pd.isna(value) for value in answers.values()):
-        return answers
-
-    dirs = get_output_dirs(dataset)
-    training_data_path = os.path.join(dirs["preprocessing"], "X_train_raw.csv")
-    if not os.path.exists(training_data_path):
-        raise FileNotFoundError(
-            f"Dati di training non trovati in '{training_data_path}', necessari per "
-            "gestire le risposte sconosciute."
-        )
-
-    training_data = pd.read_csv(training_data_path)
-    imputed_answers = answers.copy()
-    numeric_columns = num_cols if dataset == "heart_disease" else num_cols_diabetes130
-    categorical_columns = cat_cols if dataset == "heart_disease" else cat_cols_diabetes130
-
-    for column in numeric_columns:
-        if column in imputed_answers and pd.isna(imputed_answers[column]):
-            imputed_answers[column] = training_data[column].median()
-    for column in categorical_columns:
-        if column in imputed_answers and pd.isna(imputed_answers[column]):
-            imputed_answers[column] = training_data[column].mode().iloc[0]
-    return imputed_answers
+    normalized = text.strip().lower()
+    return normalized in UNKNOWN_ANSWERS or normalized.rstrip(".!?").strip() in UNKNOWN_ANSWERS
 
 
 def _positive_probability(classifier, embedding):
     positive_index = list(classifier.classes_).index(1)
     return classifier.predict_proba([embedding])[0, positive_index]
 
+
+AGE_RANGES = [f"[{low}-{low + 10})" for low in range(0, 100, 10)]
 
 QUESTIONS_HEART_DISEASE = [
     {"field": "sex", "prompt": "Per la persona valutata, quale sesso è indicato nei dati: uomo o donna?",
@@ -164,22 +144,24 @@ QUESTIONS_HEART_DISEASE = [
 
 QUESTIONS_DIABETES130 = [
     {"field": "race", "prompt": "Quale gruppo etnico è riportato nella cartella clinica? (es. Caucasian, AfricanAmerican, Asian, Hispanic, Other)",
-     "parser": _parse_nonempty, "error": "Inserisci un valore non vuoto."},
+     "parser": lambda t: _parse_choice(t, _categories(["Caucasian", "AfricanAmerican", "Asian", "Hispanic", "Other"])),
+     "error": "Scegli tra Caucasian, AfricanAmerican, Asian, Hispanic, Other."},
     {"field": "gender", "prompt": "Nei dati della persona, il genere è indicato come uomo o donna?",
      "parser": lambda t: _parse_choice(t, {"uomo": "Male", "maschio": "Male", "m": "Male", "male": "Male",
                                             "donna": "Female", "femmina": "Female", "f": "Female", "female": "Female"}),
      "error": "Rispondi 'uomo' o 'donna'."},
     {"field": "age", "prompt": "Quale fascia d'età è indicata nella cartella? (es. [50-60))",
-     "parser": _parse_nonempty, "error": "Inserisci una fascia d'età valida."},
+     "parser": lambda t: _parse_choice(t, _categories(AGE_RANGES)),
+     "error": "Inserisci una fascia nel formato [50-60), da [0-10) a [90-100)."},
     {"field": "admission_type_id", "prompt": "Quale codice è riportato per il tipo di ricovero? (es. 1)",
-     "parser": lambda t: _parse_int_range(t, 1, 30),
-     "error": "Inserisci un numero valido."},
+     "parser": lambda t: _parse_labeled(t, ADMISSION_TYPE_IDS),
+     "error": "Inserisci un codice valido, da 1 a 8."},
     {"field": "discharge_disposition_id", "prompt": "Quale codice descrive dove è stata mandata la persona alla dimissione? (es. 1)",
-     "parser": lambda t: _parse_int_range(t, 1, 30),
-     "error": "Inserisci un numero valido."},
+     "parser": lambda t: _parse_labeled(t, DISCHARGE_DISPOSITION_IDS),
+     "error": "Codice non valido o non previsto: i decessi e gli hospice sono esclusi dalla stima."},
     {"field": "admission_source_id", "prompt": "Quale codice indica da dove è arrivata la persona in ospedale? (es. 1)",
-     "parser": lambda t: _parse_int_range(t, 1, 30),
-     "error": "Inserisci un numero valido."},
+     "parser": lambda t: _parse_labeled(t, ADMISSION_SOURCE_IDS),
+     "error": "Inserisci un codice valido presente nella cartella."},
     {"field": "time_in_hospital", "prompt": "Per quanti giorni la persona è rimasta in ospedale?",
      "parser": lambda t: _parse_int_range(t, 1, 60),
      "error": "Inserisci un numero valido di giorni."},
@@ -205,15 +187,20 @@ QUESTIONS_DIABETES130 = [
      "parser": lambda t: _parse_int_range(t, 1, 20),
      "error": "Inserisci un numero valido."},
     {"field": "max_glu_serum", "prompt": "Quale risultato è riportato per il test della glicemia? (None, Norm, >200, >300)",
-     "parser": _parse_nonempty, "error": "Inserisci un valore non vuoto."},
+     "parser": lambda t: _parse_choice(t, _categories(["None", "Norm", ">200", ">300"])),
+     "error": "Scegli tra None, Norm, >200, >300."},
     {"field": "A1Cresult", "prompt": "Quale risultato è riportato per il test A1C? (None, Norm, >7, >8)",
-     "parser": _parse_nonempty, "error": "Inserisci un valore non vuoto."},
+     "parser": lambda t: _parse_choice(t, _categories(["None", "Norm", ">7", ">8"])),
+     "error": "Scegli tra None, Norm, >7, >8."},
     {"field": "insulin", "prompt": "Come è indicata la terapia con insulina nella cartella? (No, Up, Down, Steady)",
-     "parser": _parse_nonempty, "error": "Inserisci un valore non vuoto."},
+     "parser": lambda t: _parse_choice(t, _categories(["No", "Up", "Down", "Steady"])),
+     "error": "Scegli tra No, Up, Down, Steady."},
     {"field": "change", "prompt": "Durante il ricovero è stata cambiata la terapia per il diabete? (Ch/No)",
-     "parser": _parse_nonempty, "error": "Inserisci un valore non vuoto."},
+     "parser": lambda t: _parse_choice(t, _categories(["Ch", "No"])),
+     "error": "Scegli tra Ch e No."},
     {"field": "diabetesMed", "prompt": "È stato prescritto un farmaco per il diabete? (Yes/No)",
-     "parser": _parse_nonempty, "error": "Inserisci un valore non vuoto."},
+     "parser": lambda t: _parse_choice(t, _categories(["Yes", "No"])),
+     "error": "Scegli tra Yes e No."},
 ]
 
 QUESTION_EXPLANATIONS = {
@@ -283,25 +270,17 @@ def _load_deployed_bundle(dataset):
         return _classifier_cache[dataset]
 
     dirs = get_output_dirs(dataset)
-    perf_path = os.path.join(dirs["results"], "model_performance.csv")
-    embeddings_path = os.path.join(dirs["embeddings"], EMBEDDING_MODEL["filename"])
-    labels_path = os.path.join(dirs["embeddings"], EMBEDDING_MODEL["filename_label"])
-    if not (os.path.exists(perf_path) and os.path.exists(embeddings_path)):
+    bundle_path = os.path.join(dirs["results"], EMBEDDING_MODEL["bundle_filename"])
+    if not os.path.exists(bundle_path):
         raise FileNotFoundError(
             f"Nessun risultato addestrato per '{dataset}'. "
-            f"Esegui prima 'python main.py --dataset {dataset}'."
+            f"Esegui prima 'python main.py --dataset {dataset} --chatbot streamlit'."
         )
 
-    perf = pd.read_csv(perf_path, index_col=0)
-    threshold = float(perf.loc[EMBEDDING_MODEL["model_name"], "tau"])
+    bundle = joblib.load(bundle_path)
+    if (bundle["encoder"], bundle["max_seq_length"]) != (EMBEDDING_MODEL["name"], EMBEDDING_MODEL["max_seq_length"]):
+        raise RuntimeError(f"Il modello salvato per '{dataset}' usa un encoder diverso: ricostruiscilo con main.py.")
 
-    X = np.load(embeddings_path)
-    y = np.load(labels_path)
-
-    classifier = LogisticRegression(max_iter=2000)
-    classifier.fit(X, y)
-
-    bundle = {"classifier": classifier, "threshold": threshold}
     _classifier_cache[dataset] = bundle
     return bundle
 
@@ -309,7 +288,7 @@ def _load_deployed_bundle(dataset):
 def _ensure_embedder():
     global _embedder
     if _embedder is None:
-        _embedder = SentenceTransformer(EMBEDDING_MODEL["name"])
+        _embedder = load_embedder()
     return _embedder
 
 
@@ -377,13 +356,21 @@ def handle_message(session, user_text):
 
 
 def _predict(session):
+    total = len(session.questions)
+    unknown = sum(pd.isna(value) for value in session.answers.values())
+    if total - unknown < MIN_KNOWN_RATIO * total:
+        return (
+            f"Non hai potuto rispondere a {unknown} domande su {total}: "
+            "sono troppo poche informazioni per una stima affidabile.\n\n"
+            "Scrivi 'nuovo' per fare un'altra valutazione."
+        )
+
     bundle = _load_deployed_bundle(session.dataset)
     classifier = bundle["classifier"]
     threshold = bundle["threshold"]
 
     record_to_text = RECORD_TO_TEXT_BY_DATASET[session.dataset]
-    answers = _impute_unknown_answers(session.dataset, session.answers)
-    text = record_to_text(answers)
+    text = record_to_text(session.answers)
     embedding = _embed_text(text)
     probability = _positive_probability(classifier, embedding)
     risk = probability >= threshold
@@ -391,8 +378,9 @@ def _predict(session):
     risk_label, safe_label = RISK_LABEL_BY_DATASET[session.dataset]
     label = risk_label if risk else safe_label
     return (
-        f"In base ai dati forniti, il paziente risulta {label}.\n"
-        f"Probabilità stimata: {probability:.1%} (soglia di decisione: {threshold:.1%}).\n\n"
+        f"In base ai dati forniti, la persona risulta {label}.\n"
+        f"Probabilità stimata: {probability:.1%} (soglia di decisione: {threshold:.1%}).\n"
+        f"Risposte non note: {unknown} su {total}.\n\n"
         "⚠️ Questo è solo un supporto informativo basato su un modello statistico, non una diagnosi medica. "
         "Consulta sempre un professionista sanitario.\n\n"
         "Scrivi 'nuovo' per fare un'altra valutazione."

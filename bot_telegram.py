@@ -1,4 +1,5 @@
 import argparse
+import asyncio
 import logging
 import os
 
@@ -22,7 +23,7 @@ async def on_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pending_dataset_choice.discard(chat_id)
 
     if preset_dataset:
-        session, greeting = start_session(preset_dataset)
+        session, greeting = await asyncio.to_thread(start_session, preset_dataset)
         sessions[chat_id] = session
         await update.message.reply_text(greeting)
         return
@@ -41,14 +42,14 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(dataset_selection_prompt())
             return
         pending_dataset_choice.discard(chat_id)
-        session, greeting = start_session(choice)
+        session, greeting = await asyncio.to_thread(start_session, choice)
         sessions[chat_id] = session
         await update.message.reply_text(greeting)
         return
 
     if chat_id not in sessions:
         if preset_dataset:
-            session, greeting = start_session(preset_dataset)
+            session, greeting = await asyncio.to_thread(start_session, preset_dataset)
             sessions[chat_id] = session
             await update.message.reply_text(greeting)
             return
@@ -56,7 +57,8 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(dataset_selection_prompt())
         return
 
-    reply, updated_session = handle_message(sessions[chat_id], text)
+    # The embedding is CPU-bound: off the event loop, other chats keep being served meanwhile.
+    reply, updated_session = await asyncio.to_thread(handle_message, sessions[chat_id], text)
     sessions[chat_id] = updated_session
     await update.message.reply_text(reply)
 

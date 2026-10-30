@@ -25,10 +25,10 @@ def build_classifier(dataset):
     clean_output_dirs(dataset)
 
     print(f"[INFO] Lettura dataset '{dataset}'...")
-    X, y = preprocessing_data(dataset=dataset)
+    X_train, X_test, y_train, y_test = preprocessing_data(dataset=dataset)
 
-    print(f"[INFO] Generazione embeddings ({len(X)} record)...")
-    embeddings(X, y, dataset=dataset)
+    print(f"[INFO] Generazione embeddings ({len(X_train) + len(X_test)} record)...")
+    embeddings(X_train, y_train, X_test, y_test, dataset=dataset)
 
     print("[INFO] Addestramento classificatore...")
     training_classifier(dataset=dataset)

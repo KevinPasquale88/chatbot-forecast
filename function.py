@@ -8,8 +8,6 @@ columns = [
         "age", "sex", "cp", "trestbps", "chol", "fbs", "restecg",
         "thalach", "exang", "oldpeak", "slope", "ca", "thal", "num"
     ]
-num_cols = ['age', 'trestbps', 'chol', 'thalach', 'oldpeak', 'ca']
-cat_cols = ['sex', 'cp', 'fbs', 'restecg', 'exang', 'slope', 'thal']
 
 # Diabetes 130-US Hospitals dataset (UCI). The raw file has ~50 columns; most are
 # near-constant drug-dosage flags (e.g. examide, citoglipton) or high-missingness
@@ -22,22 +20,22 @@ columns_diabetes130 = [
     "number_diagnoses", "max_glu_serum", "A1Cresult", "insulin", "change",
     "diabetesMed", "readmitted"
 ]
-num_cols_diabetes130 = [
-    "time_in_hospital", "num_lab_procedures", "num_procedures", "num_medications",
-    "number_outpatient", "number_emergency", "number_inpatient", "number_diagnoses"
-]
-cat_cols_diabetes130 = [
-    "race", "gender", "age", "admission_type_id", "discharge_disposition_id",
-    "admission_source_id", "max_glu_serum", "A1Cresult", "insulin", "change", "diabetesMed"
-]
+# Discharge to hospice or death: the patient cannot be readmitted, so the outcome is not defined.
+hospice_or_death_discharge_ids = [11, 13, 14, 19, 20, 21]
 
-# All embeddings are generated with the best-performing biomedical sentence-transformer
-# found during model comparison (highest ROC-AUC on both datasets).
+# All embeddings are generated with one biomedical sentence-transformer. confronto_encoder.py
+# compares it with two alternatives: the three are equivalent within the margin of error.
 EMBEDDING_MODEL = {
     "model_name": "sentence-biobert",
     "name": "pritamdeka/BioBERT-mnli-snli-scinli-scitail-mednli-stsb",
     "filename": "sentence_biobert_embeddings.npy",
     "filename_label": "sentence_biobert_embeddings_labels.npy",
+    "filename_test": "sentence_biobert_test_embeddings.npy",
+    "filename_test_label": "sentence_biobert_test_embeddings_labels.npy",
+    "bundle_filename": "deployed_bundle.joblib",
+    # The model default is 100 tokens: the clinical sentences are longer and the last fields
+    # would be silently dropped. 512 is BERT's positional limit.
+    "max_seq_length": 512,
 }
 
 datasets = ["heart_disease", "diabetes130"]
@@ -92,10 +90,16 @@ def load_heart_disease():
 
 #load and sample the Diabetes 130-US Hospitals dataset from a local CSV
 def load_diabetes130(sample_size=20000, random_state=42):
+    # keep_default_na=False: "None" means "test not performed" here, it is not a missing value.
     df = pd.read_csv(
-        "datasets/diabetes+130-us+hospitals+for+years+1999-2008/diabetic_data.csv", na_values="?"
+        "datasets/diabetes+130-us+hospitals+for+years+1999-2008/diabetic_data.csv",
+        na_values="?", keep_default_na=False,
     )
+    df = df[~df["discharge_disposition_id"].isin(hospice_or_death_discharge_ids)]
+    # One encounter per patient (the first), so nobody ends up in both training and test.
+    df = df.sort_values("encounter_id").drop_duplicates("patient_nbr")
     df = df[columns_diabetes130].copy()
+    df["gender"] = df["gender"].replace("Unknown/Invalid", np.nan)
 
     # Binarize to the standard early-readmission benchmark task for this dataset:
     # 1 = readmitted within 30 days, 0 = readmitted later or not at all.
