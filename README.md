@@ -56,12 +56,16 @@ only to collect the inputs that goal needs.
 **The dialogue is slot-filling.** Each dataset defines an ordered list of questions — one per
 clinical feature. Every question declares four things: the `field` it fills, the `prompt` shown
 to the user, a `parser` that validates and converts the answer, and the `error` message to repeat
-when parsing fails. The agent never advances past a slot it could not interpret.
+when parsing fails. Every question also accepts `Non lo so`; unknown numeric and categorical
+answers are imputed from the training records before classification, using the same median/mode
+strategy as preprocessing.
 
 **The decision is learned.** Once every slot is filled, the collected answers are turned into a
 sentence by the same `record_to_text_*()` function used during training, embedded with the same
 model, and scored by the trained classifier. The resulting probability is compared against a
-decision threshold **τ** that was itself learned from the data (not fixed at 0.5).
+decision threshold **τ** that was itself learned from the data (not fixed at 0.5). During
+evaluation, each threshold is calibrated on an inner cross-validation of the training fold and
+measured on a separate outer fold.
 
 This split matters: the conversation is predictable and auditable, while the part that actually
 makes a judgement is measurable (see [Results](#results)).
@@ -85,11 +89,11 @@ hardcoded as the single encoder in [`function.py`](function.py)'s `EMBEDDING_MOD
 👤  centoventi
 🤖  Inserisci un'età valida (un numero tra 1 e 120).      ← slot not advanced
 👤  63
-🤖  Che tipo di dolore al petto avverti?
-    1) angina tipica   2) angina atipica
-    3) dolore non anginoso   4) asintomatico
-👤  1
-    … 10 more questions …
+🤖  Che tipo di dolore al petto avverti? ...
+  Se non lo sai, rispondi 'Non lo so'.
+👤  Non lo so
+🤖  Qual è la tua pressione arteriosa a riposo (mmHg)? ...
+  … altre domande …
 🤖  In base ai dati forniti, il paziente risulta a RISCHIO di malattia cardiaca.
     Probabilità stimata: 78.4% (soglia di decisione: 39.0%).
 
@@ -111,7 +115,7 @@ Typing `nuovo`, `ricomincia`, `restart` or `/start` resets the session at any po
 | [`function.py`](function.py) | Single source of configuration: `EMBEDDING_MODEL`, column lists per dataset, raw-data loaders, per-dataset output paths, folder cleanup. |
 | [`preprocessing.py`](preprocessing.py) | Raw records → imputed, split and class-balanced training set. |
 | [`embedding.py`](embedding.py) | `record_to_text_*()` (tabular → sentence) and embedding generation. |
-| [`classification.py`](classification.py) | 5-fold stratified cross-validation, metrics, F1-optimal threshold → `model_performance.csv`. |
+| [`classification.py`](classification.py) | Nested stratified cross-validation, metrics, F1-optimal threshold → `model_performance.csv`. |
 | [`chatbot_core.py`](chatbot_core.py) | The agent itself: question lists, session state, answer parsing, prediction. **Front-end agnostic.** |
 | [`app_streamlit.py`](app_streamlit.py) | Streamlit chat UI. |
 | [`bot_telegram.py`](bot_telegram.py) | Telegram bot (async, polling, one session per `chat_id`). |
@@ -198,6 +202,9 @@ Mean across the 5 stratified cross-validation folds, as written to
 |---|---|---|---|---|
 | **Heart Disease** | 0.8206 | 0.8193 | **0.8772** | 0.3904 |
 | **Diabetes 130** | 0.6831 | 0.6714 | 0.7679 | 0.3757 |
+
+These are previously generated benchmark values. The corrected nested threshold calibration can
+change the reported metrics; rerun `main.py` to regenerate the classifier and its results.
 
 **Reading these numbers.** ROC-AUC is the reference metric because it is independent of the
 threshold: it measures how well the model *ranks* patients by risk. Accuracy and macro-F1 are

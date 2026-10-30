@@ -4,9 +4,20 @@ import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, f1_score, precision_recall_curve, roc_auc_score
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedKFold, cross_val_predict
 
 from function import EMBEDDING_MODEL, get_output_dirs
+
+
+def _positive_class_index(classifier):
+    return list(classifier.classes_).index(1)
+
+
+def _optimal_f1_threshold(y_true, y_score):
+    precision, recall, thresholds = precision_recall_curve(y_true, y_score)
+    f1_scores = 2 * (precision[:-1] * recall[:-1]) / (precision[:-1] + recall[:-1] + 1e-6)
+    return thresholds[f1_scores.argmax()]
+
 
 def training_classifier(dataset="heart_disease"):
     dirs = get_output_dirs(dataset)
@@ -17,21 +28,22 @@ def training_classifier(dataset="heart_disease"):
     y = np.load(os.path.join(dirs["embeddings"], EMBEDDING_MODEL["filename_label"]))
 
     kf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-    logisticReg = LogisticRegression(max_iter=2000)
     fold_metrics = []
 
     for train_idx, val_idx in kf.split(X, y):
         X_train, X_val = X[train_idx], X[val_idx]
         y_train, y_val = y[train_idx], y[val_idx]
 
-        logisticReg.fit(X_train, y_train)
-        y_score = logisticReg.predict_proba(X_val)[:, 1]
+        inner_cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+        inner_classifier = LogisticRegression(max_iter=2000)
+        inner_scores = cross_val_predict(
+            inner_classifier, X_train, y_train, cv=inner_cv, method="predict_proba"
+        )[:, 1]
+        tau = _optimal_f1_threshold(y_train, inner_scores)
 
-        precision, recall, thresholds = precision_recall_curve(y_val, y_score)
-        # precision/recall have one more point than thresholds (the last point is the
-        # threshold-less recall=0 edge), so drop it before indexing into thresholds.
-        f1_scores = 2 * (precision[:-1] * recall[:-1]) / (precision[:-1] + recall[:-1] + 1e-6)
-        tau = thresholds[f1_scores.argmax()]
+        logistic_regression = LogisticRegression(max_iter=2000)
+        logistic_regression.fit(X_train, y_train)
+        y_score = logistic_regression.predict_proba(X_val)[:, _positive_class_index(logistic_regression)]
         y_pred = (y_score >= tau).astype(int)
 
         fold_metrics.append({
